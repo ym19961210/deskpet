@@ -3,7 +3,7 @@ import requests
 import json
 import pdb
 
-def get_access_token():
+def get_access_token_llm():
     """
     使用 API Key，Secret Key 获取access_token，替换下列示例中的应用API Key、应用Secret Key
     """
@@ -22,7 +22,7 @@ def get_access_token():
 
 def main():
      
-    url = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/chatglm2_6b_32k?access_token=" + get_access_token()
+    url = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/chatglm2_6b_32k?access_token=" + get_access_token_llm()
     
     payload = json.dumps({
          "messages": [
