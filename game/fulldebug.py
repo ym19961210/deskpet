@@ -8,6 +8,7 @@ import pdb
 import base64
 import urllib
 import os
+import wget
 
 API_KEY = "oLFWiwZhHcW83Hqrl2hwapTy"
 SECRET_KEY = "1n2yxFPqwt7jCc339HZNKmQDTRumV0Na"
@@ -33,8 +34,9 @@ def postVoiceToword():
     }
     # print(len(get_file_content_as_base64("D:\\deskpet\\game\\ym.mp3", False)))
     response = requests.request("POST", url, headers=headers, data=payload)
-    
-    print(response.text)
+    user_dict = json.loads(response.text)
+    reply = user_dict["result"][0]
+    return reply
     
 
 def get_file_content_as_base64(path, urlencoded=False):
@@ -105,7 +107,107 @@ class Recorder():
         wf.writeframes(b''.join(self._frames))
         wf.close()
         print("Saved")
- 
+
+def get_access_token_llm():
+    """
+    使用 API Key，Secret Key 获取access_token，替换下列示例中的应用API Key、应用Secret Key
+    """
+        
+    url = "https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=Cg8aiOTqiB18gTVPegP8HXEI&client_secret=xVWOOdlKmMeOZFmREjcLE4rWjYzoGCKN"
+    
+    payload = json.dumps("")
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    }
+    
+    response = requests.request("POST", url, headers=headers, data=payload)
+    return response.json().get("access_token")
+
+
+def llmreply(content):
+     
+    url = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/chatglm2_6b_32k?access_token=" + get_access_token_llm()
+    
+    payload = json.dumps({
+         "messages": [
+            {
+                "role": "user",
+                "content": content
+            }
+        ]
+    })
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    
+    response = requests.request("POST", url, headers=headers, data=payload)
+    # pdb.set_trace()
+    # print(response.text)
+    user_dict = json.loads(response.text)
+    return user_dict['result']
+
+def wordToVoice(text):
+        
+    url = "https://aip.baidubce.com/rpc/2.0/tts/v1/create?access_token=" + get_access_token()
+    
+    payload = json.dumps({
+        "text": text,
+        "format": "mp3-16k",
+        "voice": 5003,
+        "lang": "zh",
+        "speed": 5,
+        "pitch": 5,
+        "volume": 5,
+        "enable_subtitle": 0
+    })
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    }
+    
+    response = requests.request("POST", url, headers=headers, data=payload)
+    
+    print(response.text)
+    user_dict = json.loads(response.text)
+    tsk_id = user_dict['task_id']
+
+
+
+    url = "https://aip.baidubce.com/rpc/2.0/tts/v1/query?access_token=" + get_access_token()
+    
+    payload = json.dumps({
+        "task_ids": [
+            tsk_id
+        ]
+    })
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    }
+    
+    response = requests.request("POST", url, headers=headers, data=payload)
+    user_dict = json.loads(response.text)
+
+    status = user_dict["tasks_info"][0]["task_status"]
+    if status == "Failure":
+        print("Failure")
+        return -1
+    
+    while status == "Running":
+        time.sleep(1)
+        response = requests.request("POST", url, headers=headers, data=payload)
+        user_dict = json.loads(response.text)
+        status = user_dict["tasks_info"][0]["task_status"]
+    
+
+    for item in user_dict['tasks_info']:
+        url = item['task_result']['speech_url']
+        print(item['task_result']['speech_url'])
+        # response = requests.get(url, stream=True)
+        
+        filename = wget.download(url, out='ym1.mp3')
+    print(response.text)
  
 if __name__ == "__main__":
  
@@ -124,3 +226,8 @@ if __name__ == "__main__":
                 t = fina - begin
                 print('录音时间为%ds' % t)
                 rec.save("1%d.wav" % i)
+    reply = postVoiceToword()
+    print(reply)
+    llmAns = llmreply(reply)
+    print(llmAns)
+    wordToVoice(llmAns)
